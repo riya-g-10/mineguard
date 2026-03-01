@@ -1,10 +1,10 @@
-#⛏️ Smart Mine Safety Monitoring System
+#Smart Mine Safety Monitoring System
 
 A real-time mine safety monitoring system that simulates gas sensors, seismic vibration detection, miner health tracking, and live data visualization through a web dashboard.
 
 This project is designed to improve underground mine safety by continuously monitoring environmental conditions and miner health, providing alerts and actionable recommendations.
 
-##🚀 Project Overview
+##Project Overview
 
 Mining environments are highly hazardous due to toxic gases, explosions, structural instability, and health risks.
 
@@ -24,8 +24,8 @@ Our system monitors:
 
 7]The system simulates sensor data using Python and displays real-time updates on a web-based dashboard.
 
-##🧠 System Architecture
-1️⃣ Sensor Simulation (Python)
+##System Architecture
+1)Sensor Simulation (Python)
 
 We use a Python-based simulation file to generate real-time data for:
 
@@ -33,7 +33,7 @@ We use a Python-based simulation file to generate real-time data for:
 
 2]Seismic vibration levels
 
-The simulator:
+2)The simulator:
 
 1]Generates normal, warning, and critical levels
 
@@ -41,7 +41,7 @@ The simulator:
 
 3]Sends data to the backend/server
 
-2️⃣ Real-Time Monitoring Dashboard
+3) Real-Time Monitoring Dashboard
 
 The web dashboard:
 
@@ -55,9 +55,9 @@ The web dashboard:
 
 5]Shows real-time heart rate of each miner
 
-Provides safety recommendations
+6]Provides safety recommendations
 
-📈 Features
+##Features
 
 ✅ Real-time gas monitoring
 ✅ Seismic vibration detection
@@ -66,7 +66,7 @@ Provides safety recommendations
 ✅ Automatic safety recommendations
 ✅ Visual alert system (Safe / Warning / Danger)
 
-🎯 Project Goal
+##Project Goal
 
 To reduce mining accidents and fatalities by providing:
 
