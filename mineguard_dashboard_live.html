@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coal Mine Safety Monitoring System</title>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel2: #1c2230;
+    --border: #21303f;
+    --accent: #1f6feb;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --text: #c9d1d9;
+    --muted: #6e7681;
+    --white: #e6edf3;
+  }
+
+  html { font-family: 'Roboto', sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+  body { min-height: 100vh; overflow-x: hidden; }
+
+  /* HEADER */
+  .header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-left h1 { font-size: 15px; font-weight: 700; color: var(--white); letter-spacing: 0.5px; }
+  .header-left p  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .header-right   { display: flex; align-items: center; gap: 18px; }
+  .hdr-item       { display: flex; flex-direction: column; align-items: center; }
+  .hdr-item .lbl  { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .hdr-item .val  { font-size: 13px; font-weight: 500; color: var(--white); margin-top: 2px; }
+  .risk-badge     { padding: 2px 10px; border-radius: 3px; font-size: 11px; font-weight: 700; letter-spacing: 1px; transition: all .4s; }
+  .risk-low  { background: rgba(63,185,80,0.15);  color: var(--green);  border: 1px solid rgba(63,185,80,0.3); }
+  .risk-med  { background: rgba(210,153,34,0.15); color: var(--yellow); border: 1px solid rgba(210,153,34,0.3); }
+  .risk-high { background: rgba(248,81,73,0.15);  color: var(--red);    border: 1px solid rgba(248,81,73,0.3); }
+  .online-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; animation: pulse 2s infinite; }
+  .online-dot.connected    { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .online-dot.disconnected { background: var(--red);   box-shadow: 0 0 6px var(--red); }
+  .online-txt { font-size: 11px; }
+  .online-txt.connected    { color: var(--green); }
+  .online-txt.disconnected { color: var(--red); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  /* SUMMARY CARDS */
+  .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; padding: 12px 20px 0; }
+  .scard { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; transition: border-color .3s; }
+  .scard.alert-border-warn   { border-color: var(--yellow); }
+  .scard.alert-border-danger { border-color: var(--red); }
+  .scard .title     { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .scard .value     { font-size: 26px; font-weight: 700; color: var(--white); margin: 6px 0 2px; line-height:1; transition: color .4s; }
+  .scard .unit      { font-size: 11px; color: var(--muted); }
+  .scard .safe-range{ font-size: 10px; color: var(--muted); margin-top: 5px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.8px; margin-top: 6px; transition: all .3s; }
+  .badge-safe   { background: rgba(63,185,80,0.15);  color: var(--green);  border:1px solid rgba(63,185,80,0.25); }
+  .badge-warn   { background: rgba(210,153,34,0.15); color: var(--yellow); border:1px solid rgba(210,153,34,0.25); }
+  .badge-danger { background: rgba(248,81,73,0.15);  color: var(--red);    border:1px solid rgba(248,81,73,0.25); }
+
+  /* MAIN LAYOUT */
+  .main { display: grid; grid-template-columns: 210px 1fr 260px; gap: 10px; padding: 10px 20px; }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    display: flex; flex-direction: column; max-height: 620px;
+  }
+  .sidebar-hdr {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase; flex-shrink: 0;
+  }
+  .worker-list { overflow-y: auto; flex: 1; }
+  .worker-list::-webkit-scrollbar { width: 4px; }
+  .worker-list::-webkit-scrollbar-thumb { background: var(--border); border-radius:4px; }
+  .worker-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-bottom: 1px solid rgba(33,48,63,0.5);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .worker-row:hover  { background: var(--panel2); }
+  .worker-row.active { background: rgba(31,111,235,0.1); }
+  .w-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink:0; transition: background .3s; }
+  .w-info { flex: 1; }
+  .w-id   { font-size: 12px; font-weight: 500; color: var(--white); }
+  .w-loc  { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  /* WORKER MODAL */
+  .worker-modal {
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px; width: 280px; z-index: 200; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+  .worker-modal.show { display: block; }
+  .modal-hdr { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .modal-hdr h3 { font-size:14px; font-weight:700; color:var(--white); }
+  .modal-close { background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; }
+  .modal-row { display:flex; justify-content:space-between; padding: 6px 0; border-bottom:1px solid rgba(33,48,63,0.6); }
+  .modal-row:last-child { border-bottom:none; }
+  .modal-lbl { font-size:11px; color:var(--muted); }
+  .modal-val { font-size:12px; font-weight:500; color:var(--white); }
+  .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:199; }
+  .modal-overlay.show { display:block; }
+
+  /* AI RISK PANEL inside modal */
+  .modal-ai-box {
+    margin-top: 10px; padding: 8px 10px;
+    border-radius: 4px; font-size: 11px; line-height: 1.6;
+    border-left: 3px solid var(--accent);
+    background: rgba(31,111,235,0.08);
+    color: var(--text);
+  }
+  .modal-ai-box.warn   { border-color: var(--yellow); background: rgba(210,153,34,0.08); }
+  .modal-ai-box.danger { border-color: var(--red);    background: rgba(248,81,73,0.08); }
+  .modal-ai-title { font-size: 10px; font-weight: 700; color: var(--muted); letter-spacing: .8px; margin-bottom: 4px; text-transform: uppercase; }
+
+  /* MINE MAP */
+  .mine-map {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 6px;
+    padding: 12px; position: relative; overflow: hidden;
+  }
+  .map-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  .mine-svg  { width: 100%; height: 580px; }
+
+  /* RIGHT PANEL */
+  .right-col { display: flex; flex-direction: column; gap: 10px; }
+  .rcard { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px; }
+  .rcard-title { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; }
+  .graphs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .graph-item  { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; }
+  .graph-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .graph-item canvas { width: 100% !important; height: 70px !important; }
+
+  /* AI RISK SCORE BAR */
+  .risk-score-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .risk-score-label { font-size:10px; color:var(--muted); width:80px; flex-shrink:0; }
+  .risk-score-track { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .risk-score-fill  { height:100%; border-radius:3px; transition: width .8s ease, background .4s; }
+  .risk-score-val   { font-size:11px; font-weight:700; width:36px; text-align:right; flex-shrink:0; }
+
+  /* ACTION PANEL */
+  .action-panel { background: rgba(31,111,235,0.06); border: 1px solid rgba(31,111,235,0.2); border-radius: 6px; padding: 12px; }
+  .action-panel.warn   { background: rgba(210,153,34,0.06); border-color: rgba(210,153,34,0.3); }
+  .action-panel.danger { background: rgba(248,81,73,0.06);  border-color: rgba(248,81,73,0.3); }
+  .action-text { font-size: 12px; color: var(--text); line-height: 1.6; }
+  .action-icon { font-size: 16px; margin-right: 6px; }
+
+  /* ALERTS */
+  .alert-item   { padding: 8px 10px; border-radius: 4px; margin-bottom: 8px; animation: slideIn .3s ease; }
+  .alert-item:last-child { margin-bottom: 0; }
+  .alert-critical { background: rgba(248,81,73,0.08); border-left: 3px solid var(--red); }
+  .alert-warn     { background: rgba(210,153,34,0.08); border-left: 3px solid var(--yellow); }
+  .alert-safe     { background: rgba(63,185,80,0.08);  border-left: 3px solid var(--green); }
+  .alert-msg      { font-size: 12px; color: var(--white); font-weight: 500; }
+  .alert-time     { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .alert-action   { font-size: 10px; color: var(--muted); margin-top: 3px; font-style: italic; }
+
+  /* CONNECTION STATUS BAR */
+  .conn-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    padding: 4px 20px; font-size: 10px; font-family: 'Roboto Mono', monospace;
+    display: flex; align-items: center; gap: 16px;
+    background: var(--panel); border-top: 1px solid var(--border);
+    z-index: 50; color: var(--muted);
+  }
+  .conn-bar span { display:flex; align-items:center; gap:5px; }
+
+  @keyframes slideIn { from{opacity:0;transform:translateX(6px)} to{opacity:1;transform:translateX(0)} }
+  @keyframes flashRed { 0%,100%{background:transparent} 50%{background:rgba(248,81,73,0.15)} }
+  .flash-danger { animation: flashRed .6s ease 3; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>⛏ Coal Mine Safety Monitoring System</h1>
+    <p>Real-time underground environmental and worker safety dashboard</p>
+  </div>
+  <div class="header-right">
+    <div class="hdr-item">
+      <span class="lbl">Risk Status</span>
+      <span class="risk-badge risk-med val" id="riskBadge">MEDIUM</span>
+    </div>
+    <div class="hdr-item">
+      <span class="lbl">Workers Inside</span>
+      <span class="val" style="color:var(--white);">25</span>
+    </div>
+    <div class="hdr-item">
+      <span class="lbl">Live Time</span>
+      <span class="val" id="liveTime" style="color:var(--white);"></span>
+    </div>
+    <div class="hdr-item" style="flex-direction:row;align-items:center;gap:0;">
+      <span class="online-dot connected" id="connDot"></span>
+      <span class="online-txt connected" id="connTxt">System Online</span>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary-cards">
+  <div class="scard" id="card-ch4">
+    <div class="title">CH4 Level</div>
+    <div class="value" id="ch4Val">—</div>
+    <div class="unit">% vol</div>
+    <div class="safe-range">Safe Range: 0 – 1.0%</div>
+    <span class="badge badge-safe" id="ch4Badge">—</span>
+  </div>
+  <div class="scard" id="card-co">
+    <div class="title">CO Level</div>
+    <div class="value" id="coVal">—</div>
+    <div class="unit">PPM</div>
+    <div class="safe-range">Safe Range: 0 – 25 PPM</div>
+    <span class="badge badge-safe" id="coBadge">—</span>
+  </div>
+  <div class="scard" id="card-h2s">
+    <div class="title">H2S Level</div>
+    <div class="value" id="h2sVal">—</div>
+    <div class="unit">PPM</div>
+    <div class="safe-range">Safe Range: 0 – 1 PPM</div>
+    <span class="badge badge-safe" id="h2sBadge">—</span>
+  </div>
+  <div class="scard" id="card-seismic">
+    <div class="title">Seismic Vibration</div>
+    <div class="value" id="seismicVal">—</div>
+    <div class="unit">Richter</div>
+    <div class="safe-range">Safe Range: 0 – 2.0</div>
+    <span class="badge badge-safe" id="seismicBadge">—</span>
+  </div>
+</div>
+
+<!-- MAIN 3-COL LAYOUT -->
+<div class="main">
+
+  <!-- SIDEBAR WORKERS -->
+  <div class="sidebar">
+    <div class="sidebar-hdr">WORKERS (25)</div>
+    <div class="worker-list" id="workerList"></div>
+  </div>
+
+  <!-- MINE MAP -->
+  <div class="mine-map">
+    <div class="map-title">Underground Mine Layout</div>
+    <svg class="mine-svg" id="mineMap" viewBox="0 0 700 580" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="glow-green">
+          <feGaussianBlur stdDeviation="3" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-yellow">
+          <feGaussianBlur stdDeviation="4" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="glow-red">
+          <feGaussianBlur stdDeviation="5" result="blur"/>
+          <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="rgba(100,200,255,0.4)"/>
+        </marker>
+      </defs>
+
+      <!-- Surface -->
+      <rect x="0" y="0" width="700" height="60" fill="rgba(40,60,30,0.3)" rx="0"/>
+      <text x="350" y="22" text-anchor="middle" fill="#6e7681" font-size="11" font-family="Roboto" font-weight="700" letter-spacing="2">SURFACE</text>
+      <rect x="290" y="30" width="120" height="28" fill="#161b22" stroke="#21303f" stroke-width="1" rx="3"/>
+      <text x="350" y="47" text-anchor="middle" fill="#c9d1d9" font-size="10" font-family="Roboto" font-weight="500">MAIN SHAFT (ENTRY)</text>
+
+      <!-- Shaft vertical -->
+      <rect x="335" y="58" width="30" height="80" fill="rgba(31,111,235,0.1)" stroke="#1f6feb" stroke-width="1"/>
+      <text x="368" y="100" fill="#1f6feb" font-size="9" font-family="Roboto">Shaft</text>
+
+      <!-- Main Haulage Roadway -->
+      <rect x="80" y="138" width="540" height="30" fill="rgba(31,111,235,0.07)" stroke="#21303f" stroke-width="1" rx="3"/>
+      <text x="350" y="157" text-anchor="middle" fill="#6e7681" font-size="10" font-family="Roboto" letter-spacing="1">MAIN HAULAGE ROADWAY</text>
+      <line x1="120" y1="153" x2="160" y2="153" stroke="rgba(100,200,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="200" y1="153" x2="240" y2="153" stroke="rgba(100,200,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="460" y1="153" x2="500" y2="153" stroke="rgba(100,200,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <line x1="540" y1="153" x2="580" y2="153" stroke="rgba(100,200,255,0.4)" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+      <!-- PANEL A -->
+      <rect id="panelA" x="30" y="200" width="150" height="180" fill="rgba(63,185,80,0.06)" stroke="#3fb950" stroke-width="1.5" rx="4" filter="url(#glow-green)"/>
+      <text x="105" y="218" text-anchor="middle" fill="#3fb950" font-size="11" font-family="Roboto" font-weight="700">PANEL A</text>
+      <rect x="45" y="228" width="120" height="35" fill="rgba(63,185,80,0.06)" stroke="rgba(63,185,80,0.3)" stroke-width="1" rx="2"/>
+      <text x="105" y="249" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery A1</text>
+      <rect x="45" y="270" width="120" height="35" fill="rgba(63,185,80,0.06)" stroke="rgba(63,185,80,0.3)" stroke-width="1" rx="2"/>
+      <text x="105" y="291" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery A2</text>
+      <rect x="45" y="312" width="120" height="35" fill="rgba(63,185,80,0.06)" stroke="rgba(63,185,80,0.3)" stroke-width="1" rx="2"/>
+      <text x="105" y="333" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery A3</text>
+      <circle cx="152" cy="240" r="4" fill="none" stroke="#3fb950" stroke-width="1.2"/><circle cx="152" cy="240" r="2" fill="#3fb950" opacity="0.6"/>
+      <circle cx="152" cy="282" r="4" fill="none" stroke="#3fb950" stroke-width="1.2"/><circle cx="152" cy="282" r="2" fill="#3fb950" opacity="0.6"/>
+      <line x1="180" y1="153" x2="105" y2="200" stroke="#21303f" stroke-width="2" stroke-dasharray="4,3"/>
+
+      <!-- PANEL B -->
+      <rect id="panelB" x="200" y="200" width="150" height="180" fill="rgba(210,153,34,0.06)" stroke="#d29922" stroke-width="1.5" rx="4" filter="url(#glow-yellow)"/>
+      <text x="275" y="218" text-anchor="middle" fill="#d29922" font-size="11" font-family="Roboto" font-weight="700">PANEL B</text>
+      <rect x="215" y="228" width="120" height="35" fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.3)" stroke-width="1" rx="2"/>
+      <text x="275" y="249" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery B1</text>
+      <rect x="215" y="270" width="120" height="35" fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.3)" stroke-width="1" rx="2"/>
+      <text x="275" y="291" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery B2</text>
+      <rect x="215" y="312" width="120" height="35" fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.3)" stroke-width="1" rx="2"/>
+      <text x="275" y="333" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery B3</text>
+      <circle cx="322" cy="240" r="4" fill="none" stroke="#d29922" stroke-width="1.2"/><circle cx="322" cy="240" r="2" fill="#d29922" opacity="0.6"/>
+      <circle cx="322" cy="282" r="4" fill="none" stroke="#d29922" stroke-width="1.2"/><circle cx="322" cy="282" r="2" fill="#d29922" opacity="0.6"/>
+      <line x1="280" y1="168" x2="275" y2="200" stroke="#21303f" stroke-width="2" stroke-dasharray="4,3"/>
+
+      <!-- PANEL C -->
+      <rect id="panelC" x="370" y="200" width="150" height="180" fill="rgba(210,153,34,0.06)" stroke="#d29922" stroke-width="1.5" rx="4" filter="url(#glow-yellow)"/>
+      <text x="445" y="218" text-anchor="middle" fill="#d29922" font-size="11" font-family="Roboto" font-weight="700">PANEL C</text>
+      <rect x="385" y="228" width="120" height="35" fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.3)" stroke-width="1" rx="2"/>
+      <text x="445" y="249" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery C1</text>
+      <rect x="385" y="270" width="120" height="35" fill="rgba(210,153,34,0.06)" stroke="rgba(210,153,34,0.3)" stroke-width="1" rx="2"/>
+      <text x="445" y="291" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery C2</text>
+      <circle cx="492" cy="240" r="4" fill="none" stroke="#d29922" stroke-width="1.2"/><circle cx="492" cy="240" r="2" fill="#d29922" opacity="0.6"/>
+      <line x1="420" y1="168" x2="445" y2="200" stroke="#21303f" stroke-width="2" stroke-dasharray="4,3"/>
+
+      <!-- PANEL D -->
+      <rect id="panelD" x="520" y="200" width="150" height="180" fill="rgba(248,81,73,0.08)" stroke="#f85149" stroke-width="2" rx="4" filter="url(#glow-red)">
+        <animate attributeName="stroke-opacity" values="1;0.4;1" dur="3s" repeatCount="indefinite"/>
+      </rect>
+      <text x="595" y="218" text-anchor="middle" fill="#f85149" font-size="11" font-family="Roboto" font-weight="700">PANEL D</text>
+      <rect x="535" y="228" width="120" height="35" fill="rgba(248,81,73,0.08)" stroke="rgba(248,81,73,0.3)" stroke-width="1" rx="2"/>
+      <text x="595" y="249" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery D1</text>
+      <rect x="535" y="270" width="120" height="35" fill="rgba(248,81,73,0.08)" stroke="rgba(248,81,73,0.3)" stroke-width="1" rx="2"/>
+      <text x="595" y="291" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery D2</text>
+      <rect x="535" y="312" width="120" height="35" fill="rgba(248,81,73,0.08)" stroke="rgba(248,81,73,0.3)" stroke-width="1" rx="2"/>
+      <text x="595" y="333" text-anchor="middle" fill="#6e7681" font-size="9" font-family="Roboto">Gallery D3</text>
+      <circle cx="652" cy="240" r="4" fill="none" stroke="#f85149" stroke-width="1.2"/><circle cx="652" cy="240" r="2" fill="#f85149" opacity="0.8"/>
+      <circle cx="652" cy="282" r="4" fill="none" stroke="#f85149" stroke-width="1.2"/><circle cx="652" cy="282" r="2" fill="#f85149" opacity="0.8"/>
+      <line x1="560" y1="168" x2="595" y2="200" stroke="#21303f" stroke-width="2" stroke-dasharray="4,3"/>
+
+      <!-- WORKER DOTS -->
+      <g id="workerDots"></g>
+
+      <!-- LEGEND -->
+      <rect x="20" y="430" width="130" height="100" fill="rgba(13,17,23,0.85)" stroke="#21303f" stroke-width="1" rx="4"/>
+      <text x="30" y="448" fill="#6e7681" font-size="9" font-family="Roboto" font-weight="700" letter-spacing="0.8">LEGEND</text>
+      <circle cx="32" cy="463" r="5" fill="rgba(63,185,80,0.2)"  stroke="#3fb950" stroke-width="1.5"/>
+      <text x="42" y="467" fill="#c9d1d9" font-size="9" font-family="Roboto">Safe Zone</text>
+      <circle cx="32" cy="481" r="5" fill="rgba(210,153,34,0.2)" stroke="#d29922" stroke-width="1.5"/>
+      <text x="42" y="485" fill="#c9d1d9" font-size="9" font-family="Roboto">Warning Zone</text>
+      <circle cx="32" cy="499" r="5" fill="rgba(248,81,73,0.2)"  stroke="#f85149" stroke-width="1.5"/>
+      <text x="42" y="503" fill="#c9d1d9" font-size="9" font-family="Roboto">Danger Zone</text>
+      <circle cx="32" cy="516" r="3" fill="none" stroke="#6e7681" stroke-width="1"/>
+      <circle cx="32" cy="516" r="1.5" fill="#6e7681"/>
+      <text x="42" y="520" fill="#c9d1d9" font-size="9" font-family="Roboto">Sensor Node</text>
+      <text x="350" y="510" text-anchor="middle" fill="rgba(110,118,129,0.4)" font-size="9" font-family="Roboto">Depth: ~350m below surface</text>
+    </svg>
+  </div>
+
+  <!-- RIGHT COLUMN -->
+  <div class="right-col">
+
+    <!-- TRENDS -->
+    <div class="rcard">
+      <div class="rcard-title">Environmental Trends – Last 30 Readings</div>
+      <div class="graphs-grid">
+        <div class="graph-item">
+          <div class="graph-label">CH4 Trend (% vol)</div>
+          <canvas id="ch4Chart"></canvas>
+        </div>
+        <div class="graph-item">
+          <div class="graph-label">CO Trend (PPM)</div>
+          <canvas id="coChart"></canvas>
+        </div>
+        <div class="graph-item">
+          <div class="graph-label">H2S Trend (PPM)</div>
+          <canvas id="h2sChart"></canvas>
+        </div>
+        <div class="graph-item">
+          <div class="graph-label">Seismic (Richter)</div>
+          <canvas id="seismicChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI RISK SCORE -->
+    <div class="rcard" id="aiRiskCard">
+      <div class="rcard-title">AI Risk Assessment</div>
+      <div class="risk-score-row">
+        <span class="risk-score-label">Overall Risk</span>
+        <div class="risk-score-track"><div class="risk-score-fill" id="riskFill" style="width:40%;background:#d29922"></div></div>
+        <span class="risk-score-val" id="riskPct" style="color:#d29922">40%</span>
+      </div>
+      <div class="risk-score-row">
+        <span class="risk-score-label">Anomaly</span>
+        <div class="risk-score-track"><div class="risk-score-fill" id="anomalyFill" style="width:0%;background:#f85149"></div></div>
+        <span class="risk-score-val" id="anomalyTxt" style="color:#6e7681">—</span>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:6px" id="aiTimestamp">Waiting for AI inference...</div>
+    </div>
+
+    <!-- RECOMMENDED ACTION -->
+    <div class="rcard action-panel" id="actionPanel">
+      <div class="rcard-title">Recommended Action</div>
+      <div class="action-text" id="actionText">
+        <span class="action-icon">⚡</span>
+        Increase ventilation in Panel B due to rising CH4 levels. Restrict non-essential personnel from Panel D until sensor readings normalize.
+      </div>
+    </div>
+
+    <!-- ALERTS -->
+    <div class="rcard">
+      <div class="rcard-title">Latest Alerts</div>
+      <div id="alertFeed">
+        <div class="alert-item alert-critical">
+          <div class="alert-msg">⚠ CH4 elevated in Panel D – 2.4%</div>
+          <div class="alert-time">14:32:05</div>
+          <div class="alert-action">→ Evacuate Gallery D1, increase airflow immediately.</div>
+        </div>
+        <div class="alert-item alert-warn">
+          <div class="alert-msg">⚠ H2S rising in Panel B – 0.0011%</div>
+          <div class="alert-time">14:28:41</div>
+          <div class="alert-action">→ Issue PPE advisory to all workers in Panel B.</div>
+        </div>
+        <div class="alert-item alert-warn">
+          <div class="alert-msg">⚠ Vibration spike detected near Gallery C2</div>
+          <div class="alert-time">14:21:17</div>
+          <div class="alert-action">→ Inspect roof supports in Gallery C2 sector.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- WORKER MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+<div class="worker-modal" id="workerModal">
+  <div class="modal-hdr">
+    <h3 id="modalTitle">Worker W01</h3>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+  </div>
+  <div class="modal-row"><span class="modal-lbl">Location</span><span class="modal-val" id="mLoc"></span></div>
+  <div class="modal-row"><span class="modal-lbl">Panel</span><span class="modal-val" id="mPanel"></span></div>
+  <div class="modal-row"><span class="modal-lbl">Distance from Shaft</span><span class="modal-val" id="mDist"></span></div>
+  <div class="modal-row"><span class="modal-lbl">Heart Rate</span><span class="modal-val" id="mHR"></span></div>
+  <div class="modal-row"><span class="modal-lbl">Oxygen Level</span><span class="modal-val" id="mO2"></span></div>
+  <div class="modal-row"><span class="modal-lbl">Safety Status</span><span class="modal-val" id="mStatus"></span></div>
+  <div class="modal-ai-box" id="modalAiBox">
+    <div class="modal-ai-title">Zone Sensor Readings</div>
+    <div id="modalAiContent">Loading live data...</div>
+  </div>
+</div>
+
+<!-- CONNECTION STATUS BAR -->
+<div class="conn-bar">
+  <span><span class="online-dot connected" id="barDot" style="width:6px;height:6px"></span> <span id="barStatus">Connecting to backend...</span></span>
+  <span>Last update: <span id="lastUpdate">—</span></span>
+  <span>Readings: <span id="readingCount">0</span></span>
+  <span>Backend: <span id="backendUrl">http://localhost:5000</span></span>
+</div>
+
+<!-- SCRIPTS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════════════
+//  CONFIG — change BACKEND_URL if your server is elsewhere
+// ═══════════════════════════════════════════════════════════
+const BACKEND_URL = 'http://localhost:5000';
+
+// ═══════════════════════════════════════════════════════════
+//  LIVE TIME
+// ═══════════════════════════════════════════════════════════
+function updateTime() {
+  document.getElementById('liveTime').textContent =
+    new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(updateTime, 1000);
+updateTime();
+
+// ═══════════════════════════════════════════════════════════
+//  SENSOR THRESHOLDS
+// ═══════════════════════════════════════════════════════════
+const THRESHOLDS = {
+  ch4:     { warning: 1.0,  danger: 2.5,  unit: '% vol' },
+  co:      { warning: 25,   danger: 100,  unit: 'PPM'   },
+  h2s:     { warning: 1,    danger: 10,   unit: 'PPM'   },
+  co2:     { warning: 0.5,  danger: 1.5,  unit: '% vol' },
+  o2:      { warning: 19.5, danger: 16.0, unit: '% vol', inverted: true },
+  seismic: { warning: 2.0,  danger: 3.5,  unit: 'Richter'},
+};
+
+function getLevel(sensor, value) {
+  const t = THRESHOLDS[sensor];
+  if (!t) return 'safe';
+  if (t.inverted) {
+    if (value <= t.danger)  return 'danger';
+    if (value <= t.warning) return 'warning';
+    return 'safe';
+  }
+  if (value >= t.danger)  return 'danger';
+  if (value >= t.warning) return 'warning';
+  return 'safe';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CHART SETUP
+// ═══════════════════════════════════════════════════════════
+const CHART_COLORS = {
+  safe:    'rgb(63,185,80)',
+  warning: 'rgb(210,153,34)',
+  danger:  'rgb(248,81,73)',
+};
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { enabled: true } },
+  scales: {
+    x: { ticks: { color:'#6e7681', font:{size:7}, maxTicksLimit:6 }, grid: { color:'rgba(33,48,63,0.5)' }, border:{color:'#21303f'} },
+    y: { ticks: { color:'#6e7681', font:{size:7}, maxTicksLimit:4 }, grid: { color:'rgba(33,48,63,0.5)' }, border:{color:'#21303f'} },
+  },
+  elements: { point: { radius: 0 }, line: { tension: 0.4 } },
+  animation: { duration: 400 },
+};
+
+function makeChart(id, color) {
+  return new Chart(document.getElementById(id), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: color,
+        borderWidth: 1.5,
+        fill: true,
+        backgroundColor: color.replace('rgb(', 'rgba(').replace(')', ',0.07)'),
+      }]
+    },
+    options: { ...chartOptions }
+  });
+}
+
+const charts = {
+  ch4:     makeChart('ch4Chart',     CHART_COLORS.warning),
+  co:      makeChart('coChart',      CHART_COLORS.safe),
+  h2s:     makeChart('h2sChart',     CHART_COLORS.warning),
+  seismic: makeChart('seismicChart', CHART_COLORS.safe),
+};
+const chartData = { ch4:[], co:[], h2s:[], seismic:[] };
+const MAX_POINTS = 30;
+
+function pushChart(sensor, value, level) {
+  if (!charts[sensor]) return;
+  const cd = chartData[sensor];
+  cd.push(value);
+  if (cd.length > MAX_POINTS) cd.shift();
+
+  const color = CHART_COLORS[level] || CHART_COLORS.safe;
+  const chart = charts[sensor];
+  chart.data.labels      = cd.map((_,i) => i);
+  chart.data.datasets[0].data            = [...cd];
+  chart.data.datasets[0].borderColor     = color;
+  chart.data.datasets[0].backgroundColor = color.replace('rgb(','rgba(').replace(')',',0.07)');
+  chart.update('none');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CARD UPDATER
+// ═══════════════════════════════════════════════════════════
+const cardMap = {
+  ch4:     { val:'ch4Val',     badge:'ch4Badge',     card:'card-ch4' },
+  co:      { val:'coVal',      badge:'coBadge',      card:'card-co' },
+  h2s:     { val:'h2sVal',     badge:'h2sBadge',     card:'card-h2s' },
+  seismic: { val:'seismicVal', badge:'seismicBadge', card:'card-seismic' },
+};
+
+function updateCard(sensor, value, level) {
+  const m = cardMap[sensor];
+  if (!m) return;
+  const valEl   = document.getElementById(m.val);
+  const badgeEl = document.getElementById(m.badge);
+  const cardEl  = document.getElementById(m.card);
+  if (!valEl) return;
+
+  // Format display value
+  let display = sensor === 'ch4' ? value.toFixed(2) :
+                sensor === 'co'  ? value.toFixed(1) :
+                sensor === 'h2s' ? value.toFixed(3) :
+                value.toFixed(3);
+  valEl.textContent = display;
+
+  // Color
+  const col = level === 'danger' ? '#f85149' : level === 'warning' ? '#d29922' : '#3fb950';
+  valEl.style.color = col;
+
+  // Badge
+  badgeEl.textContent = level.toUpperCase();
+  badgeEl.className   = `badge badge-${level === 'safe' ? 'safe' : level === 'warning' ? 'warn' : 'danger'}`;
+
+  // Card border
+  cardEl.className = `scard ${level === 'danger' ? 'alert-border-danger' : level === 'warning' ? 'alert-border-warn' : ''}`;
+
+  // Flash on danger
+  if (level === 'danger') {
+    cardEl.classList.add('flash-danger');
+    setTimeout(() => cardEl.classList.remove('flash-danger'), 2000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  RISK BADGE + AI PANEL
+// ═══════════════════════════════════════════════════════════
+function updateRiskBadge(riskLevel) {
+  const el = document.getElementById('riskBadge');
+  el.textContent = riskLevel;
+  el.className   = `risk-badge val risk-${riskLevel === 'DANGER' ? 'high' : riskLevel === 'WARNING' ? 'med' : 'low'}`;
+}
+
+function updateAiPanel(data) {
+  const score  = Math.round((data.risk_score || 0) * 100);
+  const level  = (data.risk_level || 'SAFE').toLowerCase();
+  const color  = level === 'danger' ? '#f85149' : level === 'warning' ? '#d29922' : '#3fb950';
+  const isAnom = data.is_anomaly;
+
+  document.getElementById('riskFill').style.width      = score + '%';
+  document.getElementById('riskFill').style.background = color;
+  document.getElementById('riskPct').textContent       = score + '%';
+  document.getElementById('riskPct').style.color       = color;
+  document.getElementById('anomalyFill').style.width   = isAnom ? '100%' : '0%';
+  document.getElementById('anomalyTxt').textContent    = isAnom ? 'YES' : 'NO';
+  document.getElementById('anomalyTxt').style.color    = isAnom ? '#f85149' : '#3fb950';
+  document.getElementById('aiTimestamp').textContent   =
+    `Last inference: ${new Date(data.timestamp).toLocaleTimeString('en-GB')} · Model: RandomForest + GBM`;
+
+  // Update action panel
+  const panel = document.getElementById('actionPanel');
+  const text  = document.getElementById('actionText');
+  panel.className = `rcard action-panel ${level === 'danger' ? 'danger' : level === 'warning' ? 'warn' : ''}`;
+
+  if (data.advisories && data.advisories.length > 0) {
+    text.innerHTML = data.advisories.map(a => `<div style="margin-bottom:4px">⚡ ${a}</div>`).join('');
+  } else {
+    text.innerHTML = `<span class="action-icon">✅</span> All readings within safe parameters. Continue standard monitoring.`;
+  }
+
+  updateRiskBadge(data.risk_level || 'SAFE');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ALERT FEED
+// ═══════════════════════════════════════════════════════════
+function pushAlert(alert) {
+  const feed = document.getElementById('alertFeed');
+  const cls  = alert.level === 'DANGER' ? 'alert-critical' : alert.level === 'WARNING' ? 'alert-warn' : 'alert-safe';
+  const icon = alert.level === 'DANGER' ? '🔴' : alert.level === 'WARNING' ? '⚠' : '✓';
+  const now  = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const item = document.createElement('div');
+  item.className = `alert-item ${cls}`;
+  item.innerHTML = `
+    <div class="alert-msg">${icon} ${alert.message}</div>
+    <div class="alert-time">${now}</div>
+    <div class="alert-action">→ ${alert.level === 'DANGER' ? 'Immediate action required — evacuate if necessary.' : 'Monitor closely and take precautionary measures.'}</div>
+  `;
+  feed.prepend(item);
+  while (feed.children.length > 6) feed.removeChild(feed.lastChild);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  WORKER LIST + MAP DOTS
+// ═══════════════════════════════════════════════════════════
+const panels      = ['A','B','C','D'];
+const galleries   = {A:['A1','A2','A3'],B:['B1','B2','B3'],C:['C1','C2'],D:['D1','D2','D3']};
+const statusColors = {Safe:'#3fb950',Warning:'#d29922',Danger:'#f85149'};
+const panelDotPositions = {
+  A: [{x:60,y:255},{x:80,y:295},{x:100,y:335},{x:130,y:255},{x:70,y:320}],
+  B: [{x:230,y:255},{x:255,y:295},{x:240,y:335},{x:280,y:265},{x:260,y:320}],
+  C: [{x:400,y:255},{x:430,y:285},{x:460,y:255},{x:420,y:290},{x:450,y:320}],
+  D: [{x:545,y:255},{x:570,y:285},{x:590,y:335},{x:620,y:255},{x:600,y:300},
+      {x:555,y:315},{x:640,y:280},{x:580,y:255},{x:610,y:320},{x:555,y:265}],
+};
+const usedPos = {A:0,B:0,C:0,D:0};
+
+const workers = Array.from({length:25},(_,i)=>{
+  const id     = `W${String(i+1).padStart(2,'0')}`;
+  const panel  = panels[i%4];
+  const gall   = galleries[panel][i % galleries[panel].length];
+  const status = panel==='D' ? 'Danger' : (panel==='B'&&i%3===0) ? 'Warning' : (panel==='C'&&i%4===0) ? 'Warning' : 'Safe';
+  return { id, panel, gallery:gall, hr:Math.floor(70+Math.random()*30), o2:Math.floor(94+Math.random()*6), dist:`${80+Math.floor(Math.random()*180)}m`, status };
+});
+
+// Build worker list
+const wList = document.getElementById('workerList');
+workers.forEach(w => {
+  const row = document.createElement('div');
+  row.className  = 'worker-row';
+  row.id         = `wrow-${w.id}`;
+  row.innerHTML  = `
+    <span class="w-dot" id="wdot-${w.id}" style="background:${statusColors[w.status]};box-shadow:0 0 5px ${statusColors[w.status]}40"></span>
+    <div class="w-info">
+      <div class="w-id">${w.id}</div>
+      <div class="w-loc">Panel ${w.panel} › Gallery ${w.gallery}</div>
+    </div>`;
+  row.onclick = () => openModal(w, row);
+  wList.appendChild(row);
+});
+
+// Build map dots
+const dotsGroup = document.getElementById('workerDots');
+workers.forEach(w => {
+  const pArr  = panelDotPositions[w.panel];
+  const idx   = usedPos[w.panel]++ % pArr.length;
+  const {x,y} = pArr[idx];
+  const color = statusColors[w.status];
+  const g     = document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.innerHTML = `
+    <circle cx="${x}" cy="${y}" r="5" fill="${color}" opacity="0.9" style="filter:drop-shadow(0 0 4px ${color})"/>
+    <text x="${x+7}" y="${y+4}" font-size="7" fill="#c9d1d9" font-family="Roboto">${w.id}</text>`;
+  dotsGroup.appendChild(g);
+});
+
+// ═══════════════════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════════════════
+let activeRow     = null;
+let currentWorker = null;
+let latestReadings = {};
+
+function openModal(w, row) {
+  if (activeRow) activeRow.classList.remove('active');
+  activeRow    = row;
+  currentWorker = w;
+  row.classList.add('active');
+
+  document.getElementById('modalTitle').textContent = `Worker ${w.id}`;
+  document.getElementById('mLoc').textContent       = `Gallery ${w.gallery}`;
+  document.getElementById('mPanel').textContent     = `Panel ${w.panel}`;
+  document.getElementById('mDist').textContent      = w.dist;
+  document.getElementById('mHR').textContent        = `${w.hr} bpm`;
+  document.getElementById('mO2').textContent        = `${w.o2}%`;
+  document.getElementById('mStatus').textContent    = w.status;
+  document.getElementById('mStatus').style.color    = statusColors[w.status];
+
+  refreshModalReadings();
+  document.getElementById('workerModal').classList.add('show');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function refreshModalReadings() {
+  if (!currentWorker) return;
+  const box     = document.getElementById('modalAiBox');
+  const content = document.getElementById('modalAiContent');
+
+  const level   = currentWorker.status.toLowerCase();
+  box.className = `modal-ai-box ${level === 'safe' ? '' : level}`;
+
+  if (Object.keys(latestReadings).length === 0) {
+    content.textContent = 'Waiting for live sensor data...';
+    return;
+  }
+
+  const lines = Object.entries(latestReadings).map(([s,v]) => {
+    const t     = THRESHOLDS[s];
+    const lvl   = getLevel(s, v);
+    const col   = lvl === 'danger' ? '#f85149' : lvl === 'warning' ? '#d29922' : '#3fb950';
+    const unit  = t ? t.unit : '';
+    return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(33,48,63,0.4)">
+      <span style="color:#6e7681;font-size:10px">${s.toUpperCase()}</span>
+      <span style="color:${col};font-size:11px;font-weight:500">${parseFloat(v).toFixed(3)} ${unit}</span>
+    </div>`;
+  }).join('');
+  content.innerHTML = lines;
+}
+
+function closeModal() {
+  document.getElementById('workerModal').classList.remove('show');
+  document.getElementById('modalOverlay').classList.remove('show');
+  if (activeRow) { activeRow.classList.remove('active'); activeRow = null; }
+  currentWorker = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SOCKET.IO — LIVE BACKEND CONNECTION
+// ═══════════════════════════════════════════════════════════
+let readingCount = 0;
+let socket;
+
+function setConnStatus(connected) {
+  const dot   = document.getElementById('connDot');
+  const txt   = document.getElementById('connTxt');
+  const barDot = document.getElementById('barDot');
+  const barSt  = document.getElementById('barStatus');
+
+  dot.className   = `online-dot ${connected ? 'connected' : 'disconnected'}`;
+  txt.className   = `online-txt ${connected ? 'connected' : 'disconnected'}`;
+  txt.textContent = connected ? 'System Online' : 'Disconnected';
+  barDot.className= `online-dot ${connected ? 'connected' : 'disconnected'}`;
+  barSt.textContent = connected ? 'Connected to backend' : 'Backend offline — showing last data';
+  barSt.style.color = connected ? '#3fb950' : '#f85149';
+}
+
+function connectBackend() {
+  try {
+    socket = io(BACKEND_URL, {
+      transports: ['websocket','polling'],
+      reconnection: true,
+      reconnectionDelay: 2000,
+      timeout: 5000,
+    });
+
+    socket.on('connect', () => {
+      console.log('[WS] Connected');
+      setConnStatus(true);
+      document.getElementById('barStatus').textContent = 'Connected — receiving live data';
+    });
+
+    socket.on('disconnect', () => {
+      console.log('[WS] Disconnected');
+      setConnStatus(false);
+    });
+
+    socket.on('connect_error', () => {
+      setConnStatus(false);
+    });
+
+    // ── INITIAL STATE on connect ─────────────────────────────
+    socket.on('initial_state', (data) => {
+      if (data.readings) {
+        Object.entries(data.readings).forEach(([s, v]) => {
+          latestReadings[s] = v;
+          const level = getLevel(s, v);
+          updateCard(s, v, level);
+          pushChart(s, v, level);
+        });
+      }
+      if (data.risk) updateAiPanel(data.risk);
+    });
+
+    // ── LIVE SENSOR READING (every 3s from simulation) ───────
+    socket.on('sensor_update', (data) => {
+      const { sensor, value, alert } = data;
+      if (!sensor || value === undefined) return;
+
+      const v     = parseFloat(value);
+      const level = getLevel(sensor, v);
+
+      latestReadings[sensor] = v;
+      readingCount++;
+
+      updateCard(sensor, v, level);
+      pushChart(sensor, v, level);
+
+      // Refresh modal if open
+      if (currentWorker) refreshModalReadings();
+
+      // Push alert if threshold crossed
+      if (alert && alert.level !== 'SAFE') pushAlert(alert);
+
+      // Update footer
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
+      document.getElementById('readingCount').textContent = readingCount;
+    });
+
+    // ── AI INFERENCE RESULT (every 30s) ──────────────────────
+    socket.on('ai_update', (data) => {
+      updateAiPanel(data);
+      if (data.risk_level) updateRiskBadge(data.risk_level);
+    });
+
+  } catch (e) {
+    console.log('[WS] Socket.IO not available:', e);
+    setConnStatus(false);
+    startFallbackSimulation();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  FALLBACK — runs if backend is offline
+//  Keeps dashboard looking alive with simulated data
+// ═══════════════════════════════════════════════════════════
+function startFallbackSimulation() {
+  console.log('[FALLBACK] Backend offline — using simulated data');
+  document.getElementById('barStatus').textContent = 'Demo mode (backend offline)';
+
+  const state = { ch4:1.8, co:18, h2s:0.9, seismic:0.38 };
+
+  setInterval(() => {
+    state.ch4     = Math.max(0.1, Math.min(3.5, state.ch4     + (Math.random()-.5)*.12));
+    state.co      = Math.max(0,   Math.min(200, state.co      + (Math.random()-.5)*3));
+    state.h2s     = Math.max(0,   Math.min(15,  state.h2s     + (Math.random()-.5)*.15));
+    state.seismic = Math.max(0,   Math.min(4.5, state.seismic + (Math.random()-.5)*.08));
+
+    Object.entries(state).forEach(([s,v]) => {
+      const level = getLevel(s, v);
+      latestReadings[s] = v;
+      updateCard(s, v, level);
+      pushChart(s, v, level);
+    });
+
+    // Simulated risk score
+    const maxRisk = Math.max(
+      state.ch4/2.5, state.co/100, state.h2s/10, state.seismic/3.5
+    );
+    const fakeLevel = maxRisk > 0.8 ? 'DANGER' : maxRisk > 0.5 ? 'WARNING' : 'SAFE';
+    updateRiskBadge(fakeLevel);
+    document.getElementById('riskFill').style.width  = Math.round(maxRisk*100)+'%';
+    document.getElementById('riskPct').textContent   = Math.round(maxRisk*100)+'%';
+    document.getElementById('aiTimestamp').textContent = 'Demo mode — backend offline';
+
+    if (currentWorker) refreshModalReadings();
+    readingCount++;
+    document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('en-GB');
+    document.getElementById('readingCount').textContent = readingCount;
+  }, 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+connectBackend();
+
+// If no connection after 4 seconds, fall back
+setTimeout(() => {
+  if (!socket || !socket.connected) {
+    startFallbackSimulation();
+  }
+}, 4000);
+</script>
+</body>
+</html>

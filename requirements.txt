@@ -1,0 +1,26 @@
+# MineGuard — Python Dependencies
+# Install with:  pip install -r requirements.txt --break-system-packages
+
+# Web framework
+flask==3.0.3
+flask-socketio==5.3.6
+flask-cors==4.0.0
+
+# MQTT
+paho-mqtt==1.6.1
+
+# Databases
+influxdb-client==1.43.0
+pymongo==4.7.3
+
+# Data processing + ML
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.0
+joblib==1.4.2
+
+# Scheduler
+apscheduler==3.10.4
+
+# Utilities
+python-dotenv==1.0.1
