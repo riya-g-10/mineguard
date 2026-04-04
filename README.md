@@ -8,7 +8,7 @@ MineGuard is a real-time underground mine safety platform that combines IoT sens
 
 ## 🎬 Demo
 
-📹 [Watch the live demo here](https://drive.google.com/file/d/1LesiIsjJjKZXgbRct7mE-BIN8Lyfm_r3/view?usp=drivesdk)
+📹 [Watch the live demo here](https://drive.google.com/file/d/1LesiIsjJjKZXgbRct7mE-BIN8Lyfm_r3/view?usp=drive_link)
 
 ---
 
